@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IoT Runner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap">
+<style>
+/* VOICE playful study game for students on their phones: bright, quick, exact facts
+   IDEA an endless runner on a data highway: three gates ahead, each gate is an answer
+   PICTURE the road in perspective, a little robot runner, answer gates rushing in, smart street lamps
+   COLOUR sky-blue ground, signal-blue roadside, asphalt road, gate banners ice blue, apricot, pink; lamp yellow = correct
+   TYPE Manrope 800 for titles, banners and score; Manrope 500-700 for text
+   LAYOUT one phone screen: bar, question, stage, lane buttons; on a laptop the same column sits centred on the sky field */
+:root{color-scheme:light dark;--bg:light-dark(#d7eef8,#0b171d);--panel:light-dark(#ffffff,#12212a);--ink:light-dark(#101418,#eef3f6);--muted:light-dark(#4f5b66,#a9b6c0);--line:light-dark(#c4d5de,#2e434f);--on:#ffd84a;--bad:light-dark(#fbe1e1,#4a2321);--badink:light-dark(#8a1c1c,#ffb4ae);--blue:light-dark(#0d6e95,#5bbbe3)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Manrope,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden}
+.app{height:100%;max-width:640px;margin:0 auto;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;background:var(--panel)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px 6px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand b{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.brand span{color:var(--muted);font-weight:700;font-size:14px;white-space:nowrap}
+.stats{display:flex;align-items:center;gap:8px}
+.pill{margin:0;background:var(--on);color:#101418;font-weight:800;padding:4px 12px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.icon{font:inherit;font-weight:800;font-size:14px;min-width:44px;height:44px;padding:0 10px;border-radius:12px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.qpanel{padding:2px 16px 10px}
+.qtext{margin:0;font-size:clamp(17px,4.4vw,21px);line-height:1.35;font-weight:800;min-height:2.7em;letter-spacing:-.005em}
+.timer{height:6px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
+.timer i{display:block;height:100%;width:0;background:var(--blue);border-radius:99px}
+.stage{position:relative;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px 12px 14px}
+.lane{font:inherit;font-weight:800;font-size:15px;line-height:1.25;min-height:58px;padding:8px 6px;border-radius:12px;border:2px solid #101418;color:#101418;cursor:pointer;position:relative;overflow-wrap:anywhere}
+.lane:nth-child(1){background:#a8e6ff}
+.lane:nth-child(2){background:#ffbf80}
+.lane:nth-child(3){background:#ff9fd0}
+.lane.cur{box-shadow:0 0 0 3px var(--panel),0 0 0 6px var(--ink)}
+.lane.cur::after{content:"you";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);font-size:12px;font-weight:800;line-height:1;padding:3px 7px;border-radius:99px}
+.lane[disabled]{cursor:default;opacity:.75}
+.lane:focus-visible,.btn:focus-visible,.icon:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.overlay{position:absolute;inset:0;display:grid;align-items:start;justify-items:center;padding:14px}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:18px 18px 16px;max-width:440px;width:100%}
+.card h1{font-size:clamp(30px,8vw,40px);line-height:1.05;letter-spacing:-.02em;margin:0 0 6px;font-weight:800}
+.card h2{font-size:24px;margin:0 0 12px}
+.card h3{font-size:20px;margin:0 0 4px;line-height:1.3}
+.card p{margin:0 0 10px}
+.how{color:var(--muted);font-size:14px;font-weight:700}
+.credit{color:var(--muted);font-size:13px;margin:12px 0 0!important}
+.btn{font:inherit;font-weight:800;font-size:16px;border-radius:12px;padding:12px 22px;min-height:48px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.sheet{position:absolute;left:10px;right:10px;bottom:10px;display:flex;justify-content:center}
+.sheet .card{max-width:520px}
+.ans b{background:var(--on);color:#101418;padding:1px 6px;border-radius:6px}
+.src{color:var(--muted);font-size:14px}
+.end{position:fixed;inset:0;overflow:auto;background:var(--panel);z-index:5}
+.endin{max-width:640px;margin:0 auto;padding:26px 16px 44px}
+.meta{color:var(--muted);font-weight:700;margin:0}
+.big{font-size:clamp(64px,16vw,92px);font-weight:800;line-height:1;margin:4px 0;letter-spacing:-.03em}
+.sc{margin:0 0 12px;font-weight:800}
+.endin h2{font-size:clamp(20px,4.6vw,24px);line-height:1.3;margin:0 0 14px}
+#endh:focus{outline:none}
+.endin h3{font-size:19px;margin:28px 0 0}
+.review{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:12px}
+.review li{border-top:1px solid var(--line);padding-top:12px}
+.mark{display:inline-block;font-size:13px;font-weight:800;padding:1px 9px;border-radius:999px;margin-right:6px}
+.mark.y{background:var(--on);color:#101418}
+.mark.x{background:var(--bad);color:var(--badink)}
+details{margin-top:24px;border-top:1px solid var(--line)}
+summary{cursor:pointer;font-weight:800;min-height:48px;display:flex;align-items:center}
+.refs{font-size:14px;color:var(--muted);padding-left:20px;margin:0}
+.refs li{margin-bottom:8px;overflow-wrap:anywhere}
+@media(min-width:700px){.app{border-inline:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="bar">
+<div class="brand"><b>IoT Runner</b><span id="prog">13 gates ahead</span></div>
+<div class="stats"><p class="pill" id="score">0 pts</p><button class="icon" id="pause" type="button" aria-label="Pause">Pause</button></div>
+</header>
+<section class="qpanel">
+<p class="qtext" id="qtext" aria-live="polite">Swipe left or right, or tap a lane, to run through the gate with the right answer.</p>
+<div class="timer" aria-hidden="true"><i id="tbar"></i></div>
+</section>
+<div class="stage" id="stage">
+<canvas id="cv" aria-hidden="true"></canvas>
+<div class="overlay" id="intro"><div class="card">
+<h1>IoT Runner</h1>
+<p>Run the data highway. Every gate is an answer about the Internet of Things: get into the right lane before you reach it.</p>
+<p class="how">13 questions · about 3 minutes · swipe, tap a lane or use the arrow keys</p>
+<button class="btn" id="go" type="button">Start running</button>
+<p class="credit">Group C · Management &amp; Digital Transformation</p>
+</div></div>
+<div class="overlay" id="pauseov" hidden><div class="card"><h2>Paused</h2><button class="btn" id="resume" type="button">Resume</button></div></div>
+<div class="sheet" id="sheet" hidden aria-live="polite"></div>
+</div>
+<nav class="lanes" aria-label="Answer lanes: tap one to move there">
+<button class="lane" type="button">Left</button>
+<button class="lane cur" type="button">Middle</button>
+<button class="lane" type="button">Right</button>
+</nav>
+</div>
+<div class="end" id="end" hidden></div>
+<script>
+{
+const Q = [
+ {name:'Coke machine', q:'One of the first internet-connected “things” (1982) was …', opts:['a Coke machine','a smart fridge','a pacemaker'], a:0, why:'Carnegie Mellon students wired a vending machine to the ARPANET. Anyone on the network could check whether a column was empty and whether the bottles were cold.', src:'Teicher (2018)'},
+ {name:'The term', q:'Who coined the term “Internet of Things” in 1999?', opts:['Kevin Ashton','Steve Jobs','Tim Berners-Lee'], a:0, why:'Ashton used it as the title of a presentation at Procter & Gamble about RFID in the supply chain: computers should gather data about things themselves, without people typing it in.', src:'Ashton (2009)'},
+ {name:'Definition', q:'The ITU defines IoT as a global infrastructure that interconnects …', opts:['physical and virtual things','only computers and phones','only factory machines'], a:0, why:'Recommendation ITU-T Y.2060 describes IoT as interconnecting physical and virtual things through existing and evolving interoperable ICT.', src:'ITU-T (2012)'},
+ {name:'Scale', q:'About how many connected IoT devices were there worldwide at the end of 2025?', opts:['≈ 2 billion','≈ 21 billion','≈ 210 billion'], a:1, why:'IoT Analytics counts about 21.1 billion (+14% in one year) and expects 39 billion by 2030. Phones, tablets and PCs are not counted.', src:'Sinha (2025)'},
+ {name:'Capability ladder', q:'Complete Porter & Heppelmann’s ladder: monitoring → control → optimization → …', opts:['autonomy','connectivity','digitization'], a:0, why:'Each level builds on the one before: monitor the product, control it remotely, optimise its performance, and finally let it act on its own.', src:'Porter & Heppelmann (2014)'},
+ {name:'Business model', q:'Kaeser monitors its compressors at the customer’s site and charges per cubic metre of compressed air. That business model is …', opts:['pay-per-use','freemium','ad-funded'], a:0, why:'IoT monitoring lets Kaeser sell the outcome (air) instead of the machine: product as a service. For the customer, fixed investment turns into variable cost.', src:'Deutsche Messe (n.d.-a, n.d.-b)'},
+ {name:'Pilot purgatory', q:'Cisco (2017): what share of IoT initiatives stalled at the proof-of-concept stage?', opts:['10%','60%','95%'], a:1, why:'60% stalled at proof of concept and only 26% of companies reported a complete success. Culture, leadership and IT–business collaboration mattered most.', src:'Cisco (2017)'},
+ {name:'Security', q:'The Mirai botnet (2016) hijacked up to 600,000 IoT devices. What made that possible?', opts:['default passwords','a Windows bug','quantum computers'], a:0, why:'Mirai scanned the internet for cameras, video recorders and routers that still used factory passwords, then used them for massive DDoS attacks.', src:'Antonakakis et al. (2017)'},
+ {name:'Privacy', q:'In 2024, Apple and Google added phone alerts against …', opts:['unwanted tracking','overheating','fake reviews'], a:0, why:'Bluetooth trackers such as AirTags help find lost items but can be misused to follow people. iOS and Android now warn you if an unknown tracker is moving with you.', src:'Apple (2024)'},
+ {name:'Safety', q:'eCall has been mandatory in new EU car models since 2018. What does it do after a serious crash?', opts:['calls 112','pays the toll','books a repair'], a:0, why:'The car automatically calls the emergency number 112 and sends its location, even when nobody inside can.', src:'Regulation (EU) 2015/758'},
+ {name:'Smart meters', q:'98% of Viennese households have a smart meter. How many use its 15-minute data?', opts:['about 7%','about 50%','about 90%'], a:0, why:'Only about 7% opted in to quarter-hour data. Installed technology does not create value by itself.', src:'ORF Wien (2025)'},
+ {name:'E-waste', q:'How much of the world’s e-waste (62 million tonnes in 2022) was documented as properly recycled?', opts:['about 5%','about 22%','about 80%'], a:1, why:'Only 22.3%, and e-waste is growing five times faster than documented recycling. Short-lived connected gadgets add to the pile.', src:'ITU & UNITAR (2024)'},
+ {name:'Data rights', q:'Which EU law has given users access to the data their connected products generate since September 2025?', opts:['Data Act','Cyber Resilience Act','AI Act'], a:0, why:'The Data Act moves control over device data towards users. The Cyber Resilience Act sets security rules instead: vulnerability reporting since 11 September 2026, full requirements from 11 December 2027.', src:'European Commission (2025)'}
+];
+const REFS = [
+ 'Antonakakis, M., April, T., Bailey, M., Bernhard, M., Bursztein, E., Cochran, J., Durumeric, Z., Halderman, J. A., Invernizzi, L., Kallitsis, M., Kumar, D., Lever, C., Ma, Z., Mason, J., Menscher, D., Seaman, C., Sullivan, N., Thomas, K., & Zhou, Y. (2017). Understanding the Mirai botnet. In Proceedings of the 26th USENIX Security Symposium (pp. 1093–1110). USENIX Association.',
+ 'Apple. (2024, May 13). Apple and Google deliver support for unwanted tracking alerts in iOS and Android [Press release]. https://www.apple.com/newsroom/2024/05/apple-and-google-deliver-support-for-unwanted-tracking-alerts-in-ios-and-android/',
+ 'Ashton, K. (2009, June 22). That ‘Internet of Things’ thing. RFID Journal. https://www.rfidjournal.com/that-internet-of-things-thing',
+ 'Cisco. (2017, May 22). Cisco survey reveals close to three-fourths of IoT projects are failing [Press release]. https://newsroom.cisco.com/c/r/newsroom/en/us/a/y2017/m05/cisco-survey-reveals-close-to-three-fourths-of-iot-projects-are-failing.html',
+ 'Deutsche Messe. (n.d.-a). Compressed air in a carefree package. Hannover Messe. https://www.hannovermesse.de/en/news/news-articles/compressed-air-in-a-carefree-package',
+ 'Deutsche Messe. (n.d.-b). More than just hot air. Hannover Messe. https://www.hannovermesse.de/en/news/news-articles/more-than-just-hot-air',
+ 'European Commission. (2025, September 12). EU Data Act gives users control over data from connected devices [Press release]. https://digital-strategy.ec.europa.eu/en/news/eu-data-act-gives-users-control-over-data-connected-devices',
+ 'International Telecommunication Union & United Nations Institute for Training and Research. (2024). The global e-waste monitor 2024. https://ewastemonitor.info/the-global-e-waste-monitor-2024/',
+ 'ITU-T. (2012). Overview of the Internet of things (Recommendation ITU-T Y.2060). International Telecommunication Union. https://www.itu.int/rec/T-REC-Y.2060-201206-I',
+ 'ORF Wien. (2025, November 21). Smart-Meter-Ausbau fast abgeschlossen. https://wien.orf.at/stories/3330997/',
+ 'Porter, M. E., & Heppelmann, J. E. (2014). How smart, connected products are transforming competition. Harvard Business Review, 92(11), 64–88.',
+ 'Regulation (EU) 2015/758 of the European Parliament and of the Council of 29 April 2015 concerning type-approval requirements for the deployment of the eCall in-vehicle system based on the 112 service. https://eur-lex.europa.eu/eli/reg/2015/758/oj',
+ 'Sinha, S. (2025, October 28). State of IoT 2025: Number of connected IoT devices growing 14% to 21.1 billion globally. IoT Analytics. https://iot-analytics.com/number-connected-iot-devices/',
+ 'Teicher, J. (2018, February 7). The little-known story of the first IoT device. IBM. https://www.ibm.com/think/topics/iot-first-device'
+];
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const qtext = $('qtext'), tbar = $('tbar'), scoreEl = $('score'), progEl = $('prog');
+const laneBtns = [...document.querySelectorAll('.lane')];
+const sheet = $('sheet'), intro = $('intro'), pauseOv = $('pauseov'), endEl = $('end'), pauseBtn = $('pause');
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const MQ = matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : MQ.matches; };
+const DAY = {sky1:'#73c3e8', sky2:'#e3f5fc', sideA:'#1594c0', sideB:'#1388b1', road:'#36424e', roadB:'#3c4955', dash:'#f4f7f9', kerbA:'#f4f7f9', kerbB:'#101418', cloud:'#ffffff', post:'#e8eef2'};
+const NIGHT = {sky1:'#071723', sky2:'#1b3a4d', sideA:'#0d5570', sideB:'#0b4b64', road:'#20282f', roadB:'#262f38', dash:'#c9d3da', kerbA:'#c9d3da', kerbB:'#0b0f13', cloud:'#33536a', post:'#8c9aa4'};
+const BAN = ['#a8e6ff', '#ffbf80', '#ff9fd0'];
+const D = 7, ZP = 0.06, ZS = 1;
+let W = 0, H = 0, RW = 0, HZ = 0;
+let S = {i:0, res:[], score:0};
+let mode = 'intro', paused = false, lane = 1, laneX = 1;
+let travel = 0, speed = 0.05, target = 0.05;
+let gate = {z:0.13, labels:['Left','Middle','Right'], fixed:true, res:null, age:0};
+let bits = [], pops = [], shake = 0, cur = null, last = performance.now();
+
+const shuffle = a => { const b = a.slice(); for(let k = b.length - 1; k > 0; k--){ const j = Math.floor(Math.random() * (k + 1)); [b[k], b[j]] = [b[j], b[k]]; } return b; };
+function size(){
+ const r = stage.getBoundingClientRect();
+ W = r.width; H = r.height;
+ const dpr = Math.min(2, window.devicePixelRatio || 1);
+ cv.width = Math.max(1, Math.round(W * dpr)); cv.height = Math.max(1, Math.round(H * dpr));
+ ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+ RW = Math.min(W * 1.15, 760); HZ = H * 0.34;
+}
+const ro = new ResizeObserver(size);
+ro.observe(stage);
+const proj = z => { const s = 1 / (1 + Math.max(z, -0.1) * D); return {s, y: HZ + (H * 1.08 - HZ) * s}; };
+function rr(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function quad(a, b, c, d, e, f, g, h){ ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.lineTo(e, f); ctx.lineTo(g, h); ctx.closePath(); ctx.fill(); }
+function cloud(x, y, r, col){ ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x - r, y, r * 0.75, 0, 7); ctx.arc(x, y - r * 0.35, r, 0, 7); ctx.arc(x + r * 0.95, y, r * 0.8, 0, 7); ctx.fill(); ctx.fillRect(x - r, y, r * 1.95, r * 0.75); }
+function wrap(text, maxW){ const words = text.split(' '); const lines = []; let line = ''; for(const w of words){ const t = line ? line + ' ' + w : w; if(ctx.measureText(t).width > maxW && line){ lines.push(line); line = w; } else line = t; } lines.push(line); return lines; }
+
+function drawGate(time){
+ const p = proj(gate.z), lw = RW / 3 * p.s;
+ const alpha = gate.res ? Math.max(0, 1 - gate.age / 0.7) : 1;
+ if(alpha <= 0) return;
+ ctx.save(); ctx.globalAlpha = alpha;
+ for(let l = 0; l < 3; l++){
+  const cx = W / 2 + (l - 1) * lw, ph = lw * 1.32, pw = Math.max(1.5, lw * 0.06), top = p.y - ph;
+  ctx.fillStyle = isDark() ? NIGHT.post : DAY.post;
+  ctx.fillRect(cx - lw * 0.45, top, pw, ph); ctx.fillRect(cx + lw * 0.45 - pw, top, pw, ph);
+  const bw = lw * 0.9, bh = lw * 0.6, bx = cx - bw / 2;
+  let col = BAN[l];
+  if(gate.res){ if(gate.order[l] === cur.q.a) col = '#ffd84a'; else if(gate.res.lane === l) col = '#ff5a5f'; }
+  ctx.fillStyle = col; rr(bx, top, bw, bh, Math.max(2, lw * 0.08)); ctx.fill();
+  ctx.lineWidth = Math.max(1, lw * (gate.res && gate.res.lane === l ? 0.05 : 0.025)); ctx.strokeStyle = '#101418'; ctx.stroke();
+  const label = gate.labels ? gate.labels[l] : cur.q.opts[gate.order[l]];
+  let fs = lw * 0.17, lines = [label];
+  if(fs >= 6){
+   for(let k = 0; k < 5; k++){ ctx.font = `800 ${fs}px Manrope, system-ui, sans-serif`; lines = wrap(label, bw * 0.88); if(lines.length <= 3 && lines.length * fs * 1.12 <= bh * 0.9) break; fs *= 0.86; }
+   ctx.fillStyle = '#101418'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+   lines.forEach((ln, i) => ctx.fillText(ln, cx, top + bh / 2 + (i - (lines.length - 1) / 2) * fs * 1.12));
+  }
+ }
+ ctx.restore();
+}
+function drawBit(b, time){
+ const p = proj(b.z), lw = RW / 3 * p.s, x = W / 2 + (b.l - 1) * lw, y = p.y - lw * 0.3, r = lw * 0.1;
+ ctx.save(); ctx.translate(x, y); ctx.rotate(time * 2.5);
+ ctx.fillStyle = '#ffd84a'; ctx.strokeStyle = '#101418'; ctx.lineWidth = Math.max(1, r * 0.18);
+ ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.75, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.75, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+ ctx.restore();
+}
+function drawRunner(time){
+ const p = proj(ZP), lw = RW / 3 * p.s, h = lw * 0.95, x = W / 2 + (laneX - 1) * lw;
+ const ph = travel * 95, sw = Math.sin(ph), bob = Math.abs(Math.cos(ph)) * h * 0.035;
+ const tilt = Math.max(-0.3, Math.min(0.3, (lane - laneX) * 0.35));
+ ctx.save(); ctx.translate(x, p.y);
+ ctx.fillStyle = 'rgba(16,20,24,.28)'; ctx.beginPath(); ctx.ellipse(0, 0, h * 0.27, h * 0.065, 0, 0, 7); ctx.fill();
+ ctx.translate(0, -bob); ctx.rotate(tilt); ctx.lineCap = 'round';
+ ctx.strokeStyle = '#25303a'; ctx.lineWidth = h * 0.11;
+ ctx.beginPath(); ctx.moveTo(-h * 0.09, -h * 0.36); ctx.lineTo(-h * 0.09, -h * 0.05 - Math.max(0, sw) * h * 0.1); ctx.stroke();
+ ctx.beginPath(); ctx.moveTo(h * 0.09, -h * 0.36); ctx.lineTo(h * 0.09, -h * 0.05 - Math.max(0, -sw) * h * 0.1); ctx.stroke();
+ ctx.strokeStyle = '#dfe6eb'; ctx.lineWidth = h * 0.08;
+ ctx.beginPath(); ctx.moveTo(-h * 0.2, -h * 0.72); ctx.lineTo(-h * 0.29, -h * 0.48 - sw * h * 0.07); ctx.stroke();
+ ctx.beginPath(); ctx.moveTo(h * 0.2, -h * 0.72); ctx.lineTo(h * 0.29, -h * 0.48 + sw * h * 0.07); ctx.stroke();
+ ctx.fillStyle = '#f6f8fa'; ctx.strokeStyle = '#101418'; ctx.lineWidth = Math.max(1.5, h * 0.025);
+ rr(-h * 0.22, -h * 0.8, h * 0.44, h * 0.47, h * 0.11); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#1594c0'; rr(-h * 0.14, -h * 0.72, h * 0.28, h * 0.27, h * 0.05); ctx.fill(); ctx.stroke();
+ for(let k = -1; k <= 1; k++){ ctx.fillStyle = Math.sin(time * 6 + k * 2) > 0 ? '#ffd84a' : '#0e5d79'; ctx.beginPath(); ctx.arc(k * h * 0.07, -h * 0.52, h * 0.024, 0, 7); ctx.fill(); }
+ ctx.fillStyle = '#f6f8fa'; rr(-h * 0.17, -h * 1.05, h * 0.34, h * 0.27, h * 0.1); ctx.fill(); ctx.stroke();
+ ctx.beginPath(); ctx.moveTo(0, -h * 1.05); ctx.lineTo(h * 0.05, -h * 1.19); ctx.stroke();
+ ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(h * 0.05, -h * 1.22, h * 0.045, 0, 7); ctx.fill(); ctx.stroke();
+ ctx.restore();
+}
+function render(time){
+ const P = isDark() ? NIGHT : DAY;
+ ctx.save();
+ if(shake > 0 && !RM.matches) ctx.translate((Math.random() - 0.5) * 10 * shake, (Math.random() - 0.5) * 6 * shake);
+ const g = ctx.createLinearGradient(0, 0, 0, HZ); g.addColorStop(0, P.sky1); g.addColorStop(1, P.sky2);
+ ctx.fillStyle = g; ctx.fillRect(-12, -12, W + 24, HZ + 14);
+ for(let k = 0; k < 4; k++){ const cx = (((k * 0.31 + time * 0.01 * (1 + k * 0.3)) % 1.2) - 0.1) * W; cloud(cx, HZ * (0.2 + 0.17 * k), 12 + k * 4, P.cloud); }
+ cloud(W / 2, HZ - 12, 22, P.cloud);
+ ctx.fillStyle = P.sideA; ctx.fillRect(-12, HZ, W + 24, H - HZ + 14);
+ const step = 0.07, off = travel % step, base = Math.floor(travel / step);
+ let farY = HZ, farHW = 0;
+ for(let k = 0; k < 24; k++){
+  const z1 = k * step - off, z2 = z1 + step;
+  if(z2 <= 0) continue;
+  const a = proj(Math.max(z1, 0)), b = proj(z2), idx = (k + base) % 2;
+  const ha = RW / 2 * a.s, hb = RW / 2 * b.s;
+  if(idx){ ctx.fillStyle = P.sideB; quad(-12, a.y, W + 12, a.y, W + 12, b.y, -12, b.y); }
+  ctx.fillStyle = idx ? P.road : P.roadB; quad(W / 2 - ha, a.y, W / 2 + ha, a.y, W / 2 + hb, b.y, W / 2 - hb, b.y);
+  ctx.fillStyle = idx ? P.kerbA : P.kerbB;
+  quad(W / 2 - ha * 1.05, a.y, W / 2 - ha, a.y, W / 2 - hb, b.y, W / 2 - hb * 1.05, b.y);
+  quad(W / 2 + ha, a.y, W / 2 + ha * 1.05, a.y, W / 2 + hb * 1.05, b.y, W / 2 + hb, b.y);
+  if(idx){ ctx.fillStyle = P.dash; for(const m of [-1, 1]){ const xa = W / 2 + m * RW / 6 * a.s, xb = W / 2 + m * RW / 6 * b.s, da = RW * 0.007 * a.s, db = RW * 0.007 * b.s; quad(xa - da, a.y, xa + da, a.y, xb + db, b.y, xb - db, b.y); } }
+  farY = b.y; farHW = hb;
+ }
+ ctx.fillStyle = P.road; quad(W / 2 - farHW, farY, W / 2 + farHW, farY, W / 2, HZ, W / 2, HZ);
+ const ls = 0.21, loff = travel % ls;
+ for(let k = 8; k >= 0; k--){
+  const z = k * ls - loff; if(z < 0.012) continue;
+  const p = proj(z), hw = RW / 2 * p.s * 1.14, lh = RW * 0.17 * p.s;
+  ctx.strokeStyle = P.post; ctx.lineWidth = Math.max(1, 3 * p.s);
+  for(const m of [-1, 1]){ const x = W / 2 + m * hw; ctx.beginPath(); ctx.moveTo(x, p.y); ctx.lineTo(x, p.y - lh); ctx.lineTo(x - m * lh * 0.18, p.y - lh); ctx.stroke(); ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(x - m * lh * 0.18, p.y - lh + 2 * p.s, Math.max(1.2, 5 * p.s), 0, 7); ctx.fill(); }
+ }
+ const objs = [];
+ if(gate && gate.z > 0.004) objs.push({z:gate.z, f:() => drawGate(time)});
+ for(const b of bits) if(b.z > 0.004) objs.push({z:b.z, f:() => drawBit(b, time)});
+ objs.push({z:ZP, f:() => drawRunner(time)});
+ objs.sort((a, b) => b.z - a.z).forEach(o => o.f());
+ const rp = proj(ZP), rlw = RW / 3 * rp.s;
+ for(const t of pops){
+  ctx.globalAlpha = Math.max(0, 1 - t.age / 0.9);
+  ctx.font = `800 ${Math.max(18, rlw * 0.24)}px Manrope, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const x = W / 2 + (laneX - 1) * rlw, y = rp.y - rlw * 1.35 - t.age * 50;
+  ctx.lineWidth = 5; ctx.strokeStyle = '#101418'; ctx.strokeText(t.text, x, y); ctx.fillStyle = t.bad ? '#ff8a8e' : '#ffd84a'; ctx.fillText(t.text, x, y);
+ }
+ ctx.globalAlpha = 1;
+ ctx.restore();
+}
+const showScore = () => { scoreEl.textContent = `${S.score} pts`; };
+const addPop = (text, bad) => pops.push({text, bad, age:0});
+function syncLanes(){ laneBtns.forEach((b, k) => { b.classList.toggle('cur', k === lane); b.setAttribute('aria-current', k === lane ? 'true' : 'false'); }); }
+function setLane(k){ if(!(mode === 'run' || mode === 'intro') || paused) return; lane = Math.max(0, Math.min(2, k)); syncLanes(); }
+function update(dt){
+ if(paused) return;
+ speed += (target - speed) * Math.min(1, dt * 3);
+ const dz = speed * dt; travel += dz;
+ if(gate && !gate.fixed) gate.z -= dz;
+ for(const b of bits){ b.z -= dz; if(!b.done && b.z <= ZP){ b.done = true; if(b.l === lane && mode === 'run'){ b.got = true; S.score += 10; addPop('+10'); showScore(); } } }
+ bits = bits.filter(b => !b.got && b.z > 0.004);
+ if(mode === 'run' && gate && !gate.fixed && gate.z <= ZP) resolve();
+ if(gate && gate.res){ gate.age += dt; if(mode === 'stop'){ if(gate.age > 0.5) target = 0.02; if(gate.age > 1.05) openSheet(); } }
+ laneX += (lane - laneX) * Math.min(1, dt * 14);
+ shake = Math.max(0, shake - dt * 2.8);
+ for(const t of pops) t.age += dt;
+ pops = pops.filter(t => t.age < 0.9);
+ if(mode === 'run' && gate && !gate.fixed) tbar.style.width = `${Math.max(0, Math.min(100, (1 - (gate.z - ZP) / (ZS - ZP)) * 100))}%`;
+}
+function startQ(){
+ const q = Q[S.i];
+ cur = {q, order: shuffle([0, 1, 2])};
+ const chars = q.q.length + q.opts.join(' ').length;
+ const T = Math.min(14, Math.max(8, 4 + chars * 0.05)) * (RM.matches ? 1.25 : 1);
+ gate = {z:ZS, order:cur.order, res:null, age:0};
+ bits = [0.86, 0.72, 0.58, 0.44].map(z => ({z, l:Math.floor(Math.random() * 3), done:false, got:false}));
+ target = (ZS - ZP) / T; mode = 'run';
+ qtext.textContent = q.q;
+ progEl.textContent = `Gate ${S.i + 1} of ${Q.length}`;
+ laneBtns.forEach((b, k) => { const t = q.opts[cur.order[k]]; b.textContent = t; b.disabled = false; b.setAttribute('aria-label', `Lane ${k + 1}: ${t}`); });
+ syncLanes(); tbar.style.width = '0%';
+}
+function resolve(){
+ const q = cur.q, ok = cur.order[lane] === q.a;
+ gate.res = {lane, ok}; gate.age = 0; S.res[S.i] = ok;
+ if(ok){ S.score += 100; addPop('+100'); } else { shake = 1; addPop('Missed', true); }
+ showScore(); mode = 'stop';
+ laneBtns.forEach(b => b.disabled = true);
+ tbar.style.width = '100%';
+}
+function openSheet(){
+ mode = 'sheet';
+ const q = cur.q, ok = S.res[S.i];
+ sheet.innerHTML = `<div class="card"><h3>${ok ? 'Right! +100' : 'Not quite.'}</h3>${ok ? '' : `<p class="ans">The answer is <b>${q.opts[q.a]}</b>.</p>`}<p>${q.why}</p><p class="src">Source: ${q.src}</p><button class="btn" id="cont" type="button">${S.i === Q.length - 1 ? 'See my result' : 'Next gate'}</button></div>`;
+ sheet.hidden = false;
+ const c = $('cont'); c.addEventListener('click', next); c.focus({preventScroll:true});
+}
+function next(){ sheet.hidden = true; S.i++; if(S.i >= Q.length) showEnd(); else startQ(); }
+function showEnd(){
+ mode = 'end'; target = 0.03; gate = null; bits = [];
+ const n = S.res.filter(Boolean).length;
+ const rank = n === Q.length ? 'Perfect run. You are ready for the exam.' : n >= 9 ? 'Strong run. Check the facts you missed below.' : 'Good start. The review below has everything you need.';
+ endEl.innerHTML = `<div class="endin"><p class="meta">Your run</p><p class="big">${n}/${Q.length}</p><p class="sc">${S.score} points</p><h2 id="endh" tabindex="-1">${rank}</h2><button class="btn" id="again" type="button">Run again</button><h3>What to remember</h3><ul class="review">${Q.map((q, k) => `<li><span class="mark ${S.res[k] ? 'y' : 'x'}">${S.res[k] ? 'Right' : 'Missed'}</span><b>${q.name}.</b> ${q.why} <span class="src">(${q.src})</span></li>`).join('')}</ul><details><summary>Sources (APA 7)</summary><ol class="refs">${REFS.map(r => `<li>${r}</li>`).join('')}</ol></details><p class="credit">Made by Group C for Management &amp; Digital Transformation, to go with our IoT presentation. Built with the help of Claude (Anthropic).</p></div>`;
+ endEl.hidden = false; endEl.scrollTop = 0;
+ qtext.textContent = 'Run finished.'; laneBtns.forEach(b => b.disabled = true);
+ $('again').addEventListener('click', () => { S = {i:0, res:[], score:0}; showScore(); endEl.hidden = true; startQ(); });
+ $('endh').focus({preventScroll:true});
+}
+function togglePause(){
+ if(!(mode === 'run' || mode === 'stop')) return;
+ paused = !paused; pauseOv.hidden = !paused;
+ pauseBtn.textContent = paused ? 'Play' : 'Pause'; pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
+ if(paused) $('resume').focus({preventScroll:true});
+}
+$('go').addEventListener('click', () => { intro.hidden = true; startQ(); });
+$('resume').addEventListener('click', togglePause);
+pauseBtn.addEventListener('click', togglePause);
+laneBtns.forEach((b, k) => b.addEventListener('click', () => setLane(k)));
+let sx = 0, sy = 0, down = false;
+stage.addEventListener('pointerdown', e => { if(e.target.closest('.card')) return; down = true; sx = e.clientX; sy = e.clientY; });
+stage.addEventListener('pointercancel', () => { down = false; });
+stage.addEventListener('pointerup', e => {
+ if(!down) return; down = false;
+ const dx = e.clientX - sx, dy = e.clientY - sy;
+ if(Math.abs(dx) > 28 && Math.abs(dx) > Math.abs(dy)) setLane(lane + (dx > 0 ? 1 : -1));
+ else if(Math.abs(dx) < 12 && Math.abs(dy) < 12){ const r = stage.getBoundingClientRect(), x = e.clientX - r.left, lw = RW / 3 * proj(ZP).s; setLane(x < W / 2 - lw / 2 ? 0 : x > W / 2 + lw / 2 ? 2 : 1); }
+});
+addEventListener('keydown', e => {
+ const k = e.key;
+ if(k === 'ArrowLeft' || k === 'a' || k === 'A'){ setLane(lane - 1); e.preventDefault(); }
+ else if(k === 'ArrowRight' || k === 'd' || k === 'D'){ setLane(lane + 1); e.preventDefault(); }
+ else if(k === '1' || k === '2' || k === '3') setLane(+k - 1);
+ else if(k === 'p' || k === 'P' || k === 'Escape') togglePause();
+});
+document.addEventListener('visibilitychange', () => { if(document.hidden && !paused && (mode === 'run' || mode === 'stop')) togglePause(); });
+function frame(now){
+ const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+ if(W > 0 && H > 0){ update(dt); render(now / 1000); }
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function boot(data){
+ if(data && Number.isInteger(data.i) && Array.isArray(data.res)) S = {i:Math.min(data.i, Q.length), res:data.res.slice(0, Q.length), score:Number(data.score) || 0};
+ showScore(); syncLanes();
+ if(S.i >= Q.length){ intro.hidden = true; showEnd(); }
+ else if(S.i > 0) $('go').textContent = `Continue at gate ${S.i + 1}`;
+}
+window.claude?.hot?.snapshot?.(() => S);
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+}
+</script>
+</body>
+</html>
